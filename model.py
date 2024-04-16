@@ -1,15 +1,11 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Vanilla_lstm based model without social pooling
-Introduce getSocialTensorMat()
-
-@author: xiaodan & qiujia
+introduce getSocialTensorMat()
 """
 
 import torch
 import torch.nn as nn
-from criterion import mdn_loss, mdn_sample, adefde
+from criterion import mdn_loss, adefde, mdn_sample
 from vanilla_transform import rela_transform
 
 
@@ -21,6 +17,7 @@ class Interp_SocialLSTM(nn.Module):
         self.num_gaussians = args.num_gaussians
         self.use_cuda = args.use_cuda
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.infer = infer
 
         if infer:
             self.seq_length = 1
@@ -99,8 +96,8 @@ class Interp_SocialLSTM(nn.Module):
                             num_neighbors, self.rnn_size)
                     else:
                         agent = (
-                            h_nodes_vv[node] +
-                            social_tensor[node]).expand(
+                                h_nodes_vv[node] +
+                                social_tensor[node]).expand(
                             num_neighbors,
                             self.rnn_size)
 
@@ -162,7 +159,7 @@ class Interp_SocialLSTM(nn.Module):
                             continue
                         att_fea_interact = fea_interact[:, att_k, :]
                         score_rela_tar = att_fea_interact[idx_att_rela[att_k]
-                                                          ] + fea_mode[idx_att_rela[att_k]]
+                                         ] + fea_mode[idx_att_rela[att_k]]
                         score_rela_tar = torch.sum(score_rela_tar, 1)
                         score_rela_tar = torch.unsqueeze(score_rela_tar, 1)
 
@@ -183,7 +180,7 @@ class Interp_SocialLSTM(nn.Module):
             nodesPresent,
             nodes_neighbors,
             hidden_states,
-            cell_states,):
+            cell_states, ):
 
         numNodes = hidden_states.size()[0]
 
@@ -233,7 +230,6 @@ class Interp_SocialLSTM(nn.Module):
         nodes = torch.from_numpy(nodes).float().to(self.device)
         numNodes = nodes.size()[1]
 
-        # return
         ret_nodes_list = []
         ret_nodes = torch.zeros(
             obs_len + pred_eln,
@@ -241,7 +237,7 @@ class Interp_SocialLSTM(nn.Module):
             5).to(
             self.device)
         ret_nodes[:obs_len, :, :] = torch.from_numpy(nodes_temp).float().to(self.device)[
-            :obs_len, :, [0, 1, 2, 5, 6]].clone()
+                                    :obs_len, :, [0, 1, 2, 5, 6]].clone()
 
         loss_back = 0
 
@@ -279,22 +275,21 @@ class Interp_SocialLSTM(nn.Module):
                                 nodes[framenum + 1, :, 0:2], list_of_nodes)
                 loss_back += loss
 
-        output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes)
+        output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes, self.infer)
 
         next_x = output[:, 0].data
         next_y = output[:, 1].data
 
         ret_nodes[framenum + 1,
-                  :,
-                  0] = torch.from_numpy(nodes_temp).float().to(self.device)[framenum,
-                                                                            :,
-                                                                            0]
+        :,
+        0] = torch.from_numpy(nodes_temp).float().to(self.device)[framenum,
+             :,
+             0]
         ret_nodes[framenum + 1, :, 1] = next_x
         ret_nodes[framenum + 1, :, 2] = next_y
         ret_nodes[framenum + 1, :, 3] = next_x + ret_nodes[framenum, :, 3]
         ret_nodes[framenum + 1, :, 4] = next_y + ret_nodes[framenum, :, 4]
 
-        # ade fde
         mu1 = output
         ade_err = adefde(mu1, nodes[framenum + 1, :, 0:2], list_of_nodes1)
         ade.append(ade_err)
@@ -321,7 +316,7 @@ class Interp_SocialLSTM(nn.Module):
                 break
             list_of_nodes = torch.LongTensor(nodeIDs).to(self.device)
 
-            output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes)
+            output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes, self.infer)
 
             next_x = output[:, 0].data
             next_y = output[:, 1].data

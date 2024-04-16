@@ -1,5 +1,5 @@
 """
-transform from world to img coordinate
+find "neighbors" according to pre-defined neighbor_size
 """
 
 import torch

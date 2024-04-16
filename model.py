@@ -6,7 +6,7 @@ introduce getSocialTensorMat()
 import torch
 import torch.nn as nn
 from criterion import mdn_loss, adefde, mdn_sample
-from vanilla_transform import rela_transform
+from transform import rela_transform
 
 
 class Interp_SocialLSTM(nn.Module):

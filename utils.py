@@ -1,5 +1,6 @@
 """
-utils.py
+Utils script for the structural RNN implementation
+Handles processing the input and target data in batches and sequences
 """
 
 import os

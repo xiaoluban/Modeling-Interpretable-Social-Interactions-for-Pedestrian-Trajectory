@@ -66,7 +66,6 @@ def train(args):
     torch.manual_seed(seed0)
     seed1 = 8
     np.random.seed(seed1)
-    # random.seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 

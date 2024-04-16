@@ -4,7 +4,7 @@ Criterion for the structural RNN model
 
 import torch
 import numpy as np
-from torch.distributions import Multinomial, Categorical, multivariate_normal
+from torch.distributions import Categorical
 
 
 def mdn_loss(pi1, sigma1, mu1, data1, list_of_nodes):

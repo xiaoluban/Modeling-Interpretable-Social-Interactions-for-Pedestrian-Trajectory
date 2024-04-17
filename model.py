@@ -19,11 +19,6 @@ class Interp_SocialLSTM(nn.Module):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.state = state
 
-        if self.state == 'train':
-            self.seq_length = args.seq_length
-        else:
-            self.seq_length = 1
-
         self.rnn_size = args.rnn_size
         self.input_size = args.input_size
         self.output_size = args.output_size

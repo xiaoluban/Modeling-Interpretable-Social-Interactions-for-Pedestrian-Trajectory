@@ -24,9 +24,10 @@ def mdn_loss(pi1, sigma1, mu1, data1, list_of_nodes):
     return torch.mean(nll)
 
 
-def mdn_sample(pi1, sigma1, mu1, list_of_nodes, infer):
+def mdn_sample(pi1, sigma1, mu1, list_of_nodes, state):
     """
     Draw samples from a MoG during test
+    state: {"train", "test"}
     """
     numNodes = pi1.size()[0]
     out_feature = sigma1.size()[2]
@@ -35,15 +36,17 @@ def mdn_sample(pi1, sigma1, mu1, list_of_nodes, infer):
     sigma = torch.index_select(sigma1, 0, list_of_nodes)
     mu = torch.index_select(mu1, 0, list_of_nodes)
 
-    if infer:
+    if state == 'train':
+        # Training
+        categorical = Categorical(pi)
+        pis = list(categorical.sample().data)
+    else:
+        # Testing
         prob, pi = torch.max(pi, 1)
         pi = pi.tolist()
         pis = []
         for idx_pi in pi:
             pis.append(torch.tensor(idx_pi))
-    else:
-        categorical = Categorical(pi)
-        pis = list(categorical.sample().data)
 
     sample = sigma.data.new(sigma.size()[0], sigma.size()[2]).normal_()
     sample_temp = sigma.data.new(sigma.size()[0], sigma.size()[2]).normal_()

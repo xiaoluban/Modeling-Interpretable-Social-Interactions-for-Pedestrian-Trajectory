@@ -11,18 +11,18 @@ from transform import rela_transform
 
 class Interp_SocialLSTM(nn.Module):
 
-    def __init__(self, args, infer=False):
+    def __init__(self, args, state):
         super(Interp_SocialLSTM, self).__init__()
         self.args = args
         self.num_gaussians = args.num_gaussians
         self.use_cuda = args.use_cuda
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.infer = infer
+        self.state = state
 
-        if infer:
-            self.seq_length = 1
-        else:
+        if self.state == 'train':
             self.seq_length = args.seq_length
+        else:
+            self.seq_length = 1
 
         self.rnn_size = args.rnn_size
         self.input_size = args.input_size
@@ -275,7 +275,7 @@ class Interp_SocialLSTM(nn.Module):
                                 nodes[framenum + 1, :, 0:2], list_of_nodes)
                 loss_back += loss
 
-        output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes, self.infer)
+        output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes, self.state)
 
         next_x = output[:, 0].data
         next_y = output[:, 1].data
@@ -316,7 +316,7 @@ class Interp_SocialLSTM(nn.Module):
                 break
             list_of_nodes = torch.LongTensor(nodeIDs).to(self.device)
 
-            output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes, self.infer)
+            output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes, self.state)
 
             next_x = output[:, 0].data
             next_y = output[:, 1].data

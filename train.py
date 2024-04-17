@@ -1,5 +1,6 @@
 """
 train.py
+when testing on eth dataset
 """
 
 import argparse
@@ -11,7 +12,7 @@ import torch
 
 from data_reconstruct import ST_GRAPH
 from model import Interp_SocialLSTM
-from utils import DataLoader
+from utils_train import DataLoader
 
 
 def main():
@@ -81,13 +82,13 @@ def train(args):
     datasets = [d for d in os.listdir(datasets[0])]
 
     dataloader = DataLoader(datasets, args.seq_length,
-                            args.pred_length, args.batch_size, data_dirs[0], False)
+                            args.pred_length, args.batch_size, data_dirs[0], True)
     stgraph = ST_GRAPH(args.batch_size, args.seq_length + args.pred_length)
 
     val_datasets = [val_data_dirs[x] for x in data_index]
     val_datasets = [d for d in os.listdir(val_datasets[0])]
-    val_dataloader = DataLoader(val_datasets, args.seq_length, args.pred_length, args.batch_size, val_data_dirs[0],
-                                False)
+    val_dataloader = DataLoader(val_datasets, args.seq_length,
+                                args.pred_length, args.batch_size, val_data_dirs[0], False)
     val_stgraph = ST_GRAPH(args.batch_size, args.seq_length + args.pred_length)
 
     log_directory = '../log/basic/eth/k='+str(args.k_head)+'/'
@@ -106,7 +107,7 @@ def train(args):
     def checkpoint_path(x):
         return os.path.join(save_directory, 'basic_lstm_model_' + str(x) + '.tar')
 
-    net = Interp_SocialLSTM(args)
+    net = Interp_SocialLSTM(args, state='train')
     print(net)
     if args.use_cuda:
         net = net.cuda()

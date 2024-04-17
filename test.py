@@ -1,5 +1,6 @@
 """
 test.py
+when testing on eth dataset
 """
 
 import torch
@@ -11,7 +12,7 @@ import numpy as np
 
 from data_reconstruct import ST_GRAPH
 from model import Interp_SocialLSTM
-from utils import DataLoader
+from utils_test import DataLoader
 
 
 def main():
@@ -77,10 +78,10 @@ def test(args):
     datasets = [data_dirs[x] for x in data_index]
     datasets = [d for d in os.listdir(datasets[0])]
 
-    dataloader = DataLoader(datasets, args.seq_length, args.pred_length, args.batch_size, data_dirs[0], True)
+    dataloader = DataLoader(datasets, args.seq_length, args.pred_length, args.batch_size, data_dirs[0])
     stgraph = ST_GRAPH(args.batch_size, args.seq_length + args.pred_length)
 
-    net = Interp_SocialLSTM(args)
+    net = Interp_SocialLSTM(args, state='test')
     # print(net)
 
     checkpoint_path_trained = os.path.join('../save/basic/hotel/k=' + str(args.k_head) + '/',

@@ -1,6 +1,6 @@
 """
 train.py
-when testing on eth dataset
+Example: Testing on eth dataset
 """
 
 import argparse
@@ -158,11 +158,7 @@ def train(args):
             count_patience = 0
 
         if earlystop is True:
-            print('saving model')
-            torch.save({'epoch': epoch,
-                        'state_dict': net.state_dict(),
-                        'optimizer_state_dict': optimizer.state_dict()
-                        }, checkpoint_path(epoch))
+            print('Training End')
             break
 
     log_file_curve.close()

@@ -1,6 +1,6 @@
 """
 test.py
-when testing on eth dataset
+Example: Testing on eth dataset
 """
 
 import torch
@@ -56,7 +56,10 @@ def main():
                         help='L2 regularization parameter')
     parser.add_argument('--use_cuda', action='store_true', default=False,
                         help='Use GPU or not')
+    parser.add_argument('--pretrained_model_index', type=int, default=None,
+                        help='selected pretrained model for test')
     args = parser.parse_args()
+
     test(args)
 
 
@@ -84,8 +87,8 @@ def test(args):
     net = Interp_SocialLSTM(args, state='test')
     # print(net)
 
-    checkpoint_path_trained = os.path.join('../save/basic/hotel/k=' + str(args.k_head) + '/',
-                                           'basic_lstm_model_' + str(172) + '.tar')
+    checkpoint_path_trained = os.path.join('../save/basic/eth/k=' + str(args.k_head) + '/',
+                                           'basic_lstm_model_' + str(args.pretrained_model_index) + '.tar')
     if os.path.isfile(checkpoint_path_trained):
         print('------Loading checkpoint---')
         checkpoint = torch.load(checkpoint_path_trained)

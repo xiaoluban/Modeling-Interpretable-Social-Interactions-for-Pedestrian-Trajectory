@@ -85,7 +85,8 @@ def test(args):
     stgraph = ST_GRAPH(args.batch_size, args.seq_length + args.pred_length)
 
     net = Interp_SocialLSTM(args, state='test')
-    # print(net)
+    if args.use_cuda:
+        net = net.cuda()
 
     checkpoint_path_trained = os.path.join('../save/basic/eth/k=' + str(args.k_head) + '/',
                                            'basic_lstm_model_' + str(args.pretrained_model_index) + '.tar')

@@ -17,6 +17,7 @@ class Interp_SocialLSTM(nn.Module):
         self.num_gaussians = args.num_gaussians
         self.use_cuda = args.use_cuda
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.seq_length = args.seq_length
         self.state = state
 
         self.rnn_size = args.rnn_size

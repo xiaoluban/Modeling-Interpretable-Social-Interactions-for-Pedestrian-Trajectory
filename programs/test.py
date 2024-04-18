@@ -109,7 +109,7 @@ def test_epoch(dataloader, net, args, stgraph):
 
     for batch in tqdm.tqdm(range(dataloader.num_batches)):  # 81
         start = time.time()
-        x, mask, _, _, _ = dataloader.next_batch()
+        x, mask, _, _, = dataloader.next_batch()
         stgraph.readGraph(x)
 
         for sequence in range(8):
@@ -117,7 +117,7 @@ def test_epoch(dataloader, net, args, stgraph):
 
             # with torch.no_grad():
             net.eval()
-            _, ade, fde, _ = net(nodes_temp, nodesPresent, args, args.seq_length, args.pred_length, num_samples)
+            _, ade, fde, _ = net.run_test(nodes_temp, nodesPresent, args, args.seq_length, args.pred_length, num_samples)
             ade_total += ade
             fde_total += fde
 

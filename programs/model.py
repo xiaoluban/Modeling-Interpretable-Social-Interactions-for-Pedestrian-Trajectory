@@ -50,6 +50,24 @@ class Interp_SocialLSTM(nn.Module):
             self.num_gaussians *
             self.output_size)
 
+        # Below are useless parts, can be deleted for new train
+        # (but necessary for test the saved "pretrained model 97")
+        self.mumiddle = nn.Linear(self.rnn_size, self.output_size)
+        self.mulast = nn.Linear(self.rnn_size, self.output_size)
+        self.num_modes = 5
+        self.embedding_mode_traj = nn.Linear(self.num_modes, self.rnn_size)
+        self.mode = nn.Linear(self.rnn_size, self.num_modes)
+        self.embedding_cat = nn.Linear(2 * self.rnn_size, self.rnn_size)
+        self.embedding_output = nn.Linear(2 * self.rnn_size, self.rnn_size)
+        self.embedding_output2 = nn.Linear(self.rnn_size, self.rnn_size)
+        self.dropout = nn.Dropout(args.dropout)
+        self.tanh = torch.tanh
+        self.lstm_interact = nn.RNNCell(int(2 * self.rnn_size), self.rnn_size)
+        self.embedding_input_layer2 = nn.Linear(int(self.input_size / 2), self.rnn_size)
+        self.attention_embedding_layer = nn.Linear(4, 1)
+        self.social_embedding_layer = nn.Linear(2 * self.rnn_size, self.rnn_size)
+        self.input_re_embedin_layer = nn.Linear(2 * self.rnn_size, self.rnn_size)
+
     def getSocialTensorMat(
             self,
             nodes_current,
@@ -219,7 +237,7 @@ class Interp_SocialLSTM(nn.Module):
 
         return pi, mu, sigma, hidden_states, cell_states
 
-    def forward(self, nodes_temp, nodesPresent, args, obs_len, pred_eln):
+    def run_train(self, nodes_temp, nodesPresent, args, obs_len, pred_eln):
 
         nodes = nodes_temp[:, :, 1:]
         nodes = torch.from_numpy(nodes).float().to(self.device)
@@ -347,3 +365,145 @@ class Interp_SocialLSTM(nn.Module):
             fde = adefde(fde_pred, fde_gt, list_of_nodes1)
         ret_nodes_list.append(ret_nodes)
         return loss_back, torch.mean(torch.stack(ade, 0)), fde, ret_nodes_list
+
+    def run_test(self, nodes_temp, nodesPresent, args, obs_len, pred_eln, num_samples):
+
+        min_ade = 10000
+        min_fde = 10000
+        ret_nodes_list = []
+
+        for _ in range(num_samples):
+
+            nodes = nodes_temp[:, :, 1:]
+            nodes = torch.from_numpy(nodes).float().to(self.device)
+            numNodes = nodes.size()[1]
+
+            ret_nodes = torch.zeros(
+                obs_len + pred_eln,
+                numNodes,
+                5).to(
+                self.device)
+            ret_nodes[:obs_len, :, :] = torch.from_numpy(nodes_temp).float().to(self.device)[
+                                        :obs_len, :, [0, 1, 2, 5, 6]].clone()
+
+            loss_back = 0
+
+            ade = []
+
+            fde_pred = 0.0
+            fde_gt = 0.0
+
+            nodesLast1 = nodesPresent[0]
+            nodesCurr1 = nodesPresent[obs_len + pred_eln - 1]
+            nodeIDs1 = [value for value in nodesCurr1 if value in nodesLast1]
+
+            list_of_nodes1 = torch.LongTensor(nodeIDs1).to(self.device)
+            if len(list_of_nodes1) == 0:
+                return 0, torch.Tensor([0]), torch.Tensor([0]), 0
+
+            hidden_states_ende = torch.zeros(
+                numNodes, args.rnn_size).to(
+                self.device)
+            cell_states_ende = torch.zeros(numNodes, args.rnn_size).to(self.device)
+
+            for framenum in range(obs_len):
+                nodes_neighbors = rela_transform(nodes[framenum, :, [0, 1, 4, 5]], nodesPresent[framenum],
+                                                 self.neighbor_size, self.use_cuda)
+                pi, ol_mu, sigma, hidden_states_ende, cell_states_ende = self.train_one(
+                    nodes[framenum], nodesPresent[framenum], nodes_neighbors, hidden_states_ende, cell_states_ende)
+
+                nodesLast = nodesPresent[framenum]
+                nodesCurr = nodesPresent[framenum + 1]
+                nodeIDs = [value for value in nodesCurr if value in nodesLast]
+
+                list_of_nodes = torch.LongTensor(nodeIDs).to(self.device)
+                if not len(list_of_nodes) == 0:
+                    loss = mdn_loss(pi, sigma, ol_mu,
+                                    nodes[framenum + 1, :, 0:2], list_of_nodes)
+                    loss_back += loss
+
+            output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes, self.state)
+
+            next_x = output[:, 0].data
+            next_y = output[:, 1].data
+
+            ret_nodes[framenum + 1,
+            :,
+            0] = torch.from_numpy(nodes_temp).float().to(self.device)[framenum,
+                 :,
+                 0]
+            ret_nodes[framenum + 1, :, 1] = next_x
+            ret_nodes[framenum + 1, :, 2] = next_y
+            ret_nodes[framenum + 1, :, 3] = next_x + ret_nodes[framenum, :, 3]
+            ret_nodes[framenum + 1, :, 4] = next_y + ret_nodes[framenum, :, 4]
+
+            mu1 = output
+            ade_err = adefde(mu1, nodes[framenum + 1, :, 0:2], list_of_nodes1)
+            ade.append(ade_err)
+            fde_pred += mu1
+            fde_gt += nodes[framenum + 1, :, 0:2]
+
+            last_location = nodes[framenum, :, 4:6]
+            for framenum in range(obs_len, obs_len + pred_eln - 1):
+                curr_nodes = torch.zeros(nodes_temp.shape[1], 6).to(self.device)
+
+                curr_nodes[:, 0:2] = output
+                curr_nodes[:, 2:4] = output / 0.4
+                curr_nodes[:, 4:6] = output + last_location
+
+                nodes_neighbors = rela_transform(
+                    curr_nodes[:, [0, 1, 4, 5]], nodesPresent[framenum], self.neighbor_size, self.use_cuda)
+                pi, ol_mu, sigma, hidden_states_ende, cell_states_ende = self.train_one(
+                    curr_nodes, nodesPresent[framenum], nodes_neighbors, hidden_states_ende, cell_states_ende)
+
+                nodesLast = nodesPresent[framenum]
+                nodesCurr = nodesPresent[framenum + 1]
+                nodeIDs = [value for value in nodesCurr if value in nodesLast]
+                if len(nodeIDs) == 0:
+                    break
+                list_of_nodes = torch.LongTensor(nodeIDs).to(self.device)
+
+                output, _ = mdn_sample(pi, sigma, ol_mu, list_of_nodes, self.state)
+
+                next_x = output[:, 0].data
+                next_y = output[:, 1].data
+
+                ret_nodes[framenum + 1, :, 0] = ret_nodes[framenum, :, 0]
+                ret_nodes[framenum + 1, :, 1] = next_x
+                ret_nodes[framenum + 1, :, 2] = next_y
+                ret_nodes[framenum + 1, :, 3] = next_x + ret_nodes[framenum, :, 3]
+                ret_nodes[framenum + 1, :, 4] = next_y + ret_nodes[framenum, :, 4]
+
+                if not len(list_of_nodes) == 0:
+                    loss = mdn_loss(pi, sigma, ol_mu,
+                                    nodes[framenum + 1, :, 0:2], list_of_nodes)
+                    loss_back += loss
+
+                ade_err = adefde(output +
+                                 curr_nodes[:, 4:6], nodes[framenum +
+                                                           1, :, 4:6], list_of_nodes1)
+                ade.append(ade_err)
+                if framenum == obs_len + pred_eln - 2:
+                    fde = ade_err
+                fde_pred += output
+                fde_gt += nodes[framenum + 1, :, 0:2]
+                last_location = curr_nodes[:, 4:6]
+
+            nodesLast = nodesPresent[0]
+            nodesCurr = nodesPresent[obs_len + pred_eln - 1]
+            nodeIDs = [value for value in nodesCurr if value in nodesLast]
+            if len(nodeIDs) == 0:
+                fde = 0.0
+                ade = [torch.Tensor([0.0])].to(self.device)
+            else:
+                fde = adefde(fde_pred, fde_gt, list_of_nodes1)
+
+            if torch.mean(torch.stack(ade, 0)) < min_ade:
+                if torch.mean(torch.stack(ade, 0)) > torch.exp(torch.Tensor([-6])):
+                    min_ade = torch.mean(torch.stack(ade, 0))
+                    ret_nodes_list.append(ret_nodes.clone())
+            if fde < min_fde:
+                if torch.mean(torch.stack(ade, 0)) > torch.exp(torch.Tensor([-6])):
+                    min_fde = fde
+
+        return loss_back, min_ade, min_fde, ret_nodes_list

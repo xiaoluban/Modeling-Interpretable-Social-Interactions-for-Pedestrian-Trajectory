@@ -58,7 +58,7 @@ def main():
     parser.add_argument('--use_cuda', action='store_true', default=False,
                         help='Use GPU or not')
     args = parser.parse_args()
-    args.k_head = 3
+
     train(args)
 
 
@@ -93,14 +93,14 @@ def train(args):
                                 args.pred_length, args.batch_size, val_data_dirs[0], False)
     val_stgraph = ST_GRAPH(args.batch_size, args.seq_length + args.pred_length)
 
-    log_directory = '../log/basic/eth/k='+str(args.k_head)+'/'
+    log_directory = '../log/basic/eth/k=' + str(args.k_head) + '/'
     if not os.path.exists(log_directory):
         os.makedirs(log_directory)
     log_file_curve = open(os.path.join(log_directory, 'log_curve.txt'), 'w+')
     log_val_curve = open(os.path.join(
         log_directory, 'log_val_curve.txt'), 'w+')
 
-    save_directory = '../save/basic/eth/k='+str(args.k_head)+'/'
+    save_directory = '../save/basic/eth/k=' + str(args.k_head) + '/'
     if not os.path.exists(save_directory):
         os.makedirs(save_directory)
     with open(os.path.join(save_directory, 'config.pkl'), 'wb') as f:
@@ -180,8 +180,8 @@ def validation(dataloader, net, args, stgraph, epoch, log_file_curve):
         for sequence in range(args.batch_size):
             nodes_temp, _, nodesPresent, _ = stgraph.getSequence(sequence)
 
-            loss, _, _, _ = net(nodes_temp, nodesPresent,
-                                args, args.seq_length, args.pred_length)
+            loss, _, _, _ = net.run_train(nodes_temp, nodesPresent,
+                                          args, args.seq_length, args.pred_length)
 
             if loss == 0:
                 continue
@@ -215,7 +215,7 @@ def train_epoch(dataloader, net, args, stgraph, epoch, optimizer, log_file_curve
     dataloader.reset_batch_pointer()
     loss_epoch = 0.0
 
-    for batch in tqdm.tqdm(range(dataloader.num_batches)):  # 81
+    for batch in range(dataloader.num_batches):  # 81
         start = time.time()
         x, mask, _, _ = dataloader.next_batch()
         stgraph.readGraph(x)
@@ -225,8 +225,8 @@ def train_epoch(dataloader, net, args, stgraph, epoch, optimizer, log_file_curve
         for sequence in range(args.batch_size):
             nodes_temp, _, nodesPresent, _ = stgraph.getSequence(sequence)
 
-            loss, _, _, _ = net(nodes_temp, nodesPresent,
-                                args, args.seq_length, args.pred_length)
+            loss, _, _, _ = net.run_train(nodes_temp, nodesPresent,
+                                          args, args.seq_length, args.pred_length)
 
             if loss == 0:
                 continue
